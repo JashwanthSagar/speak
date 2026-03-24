@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -49,6 +50,7 @@
             text-align: center;
             background: linear-gradient(to right, #60a5fa, #3b82f6);
             -webkit-background-clip: text;
+            background-clip: text;
             -webkit-text-fill-color: transparent;
         }
 
@@ -72,13 +74,20 @@
             pointer-events: none;
         }
 
-        .mic-btn.recording ~ .pulse-ring {
+        .mic-btn.recording~.pulse-ring {
             animation: pulse 1.5s infinite cubic-bezier(0.4, 0, 0.6, 1);
         }
 
         @keyframes pulse {
-            0% { transform: scale(0.8); opacity: 0.5; }
-            100% { transform: scale(1.5); opacity: 0; }
+            0% {
+                transform: scale(0.8);
+                opacity: 0.5;
+            }
+
+            100% {
+                transform: scale(1.5);
+                opacity: 0;
+            }
         }
 
         .mic-btn {
@@ -103,7 +112,7 @@
             transform: scale(1.05);
             background-color: #2563eb;
         }
-        
+
         .mic-btn:active {
             transform: scale(0.95);
         }
@@ -114,8 +123,13 @@
         }
 
         @keyframes bounce {
-            0% { transform: scale(1); }
-            100% { transform: scale(1.1); }
+            0% {
+                transform: scale(1);
+            }
+
+            100% {
+                transform: scale(1.1);
+            }
         }
 
         .mic-btn svg {
@@ -191,15 +205,17 @@
         }
     </style>
 </head>
+
 <body>
 
     <div class="container">
         <h1>Speech to Text Translator</h1>
-        
+
         <div class="mic-btn-container">
             <button id="micBtn" class="mic-btn" aria-label="Toggle Recording">
                 <svg viewBox="0 0 24 24">
-                    <path d="M12 14c1.66 0 2.99-1.34 2.99-3L15 5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c3.28-.48 6-3.3 6-6.72h-1.7z"/>
+                    <path
+                        d="M12 14c1.66 0 2.99-1.34 2.99-3L15 5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c3.28-.48 6-3.3 6-6.72h-1.7z" />
                 </svg>
             </button>
             <div class="pulse-ring"></div>
@@ -231,6 +247,7 @@
             let recognition = null;
             let isRecording = false;
             let finalTranscript = '';
+            let previousTranscript = '';
 
             // Chrome requires webkitSpeechRecognition
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -258,25 +275,27 @@
             };
 
             recognition.onresult = (event) => {
-                let interimTranscript = '';
+                let currentInterim = '';
+                let sessionFinal = '';
 
-                for (let i = event.resultIndex; i < event.results.length; i++) {
+                for (let i = 0; i < event.results.length; i++) {
                     const transcript = event.results[i][0].transcript;
                     if (event.results[i].isFinal) {
-                        finalTranscript += transcript + ' ';
+                        sessionFinal += transcript + ' ';
                     } else {
-                        interimTranscript += transcript;
+                        currentInterim += transcript;
                     }
                 }
 
+                finalTranscript = previousTranscript + sessionFinal;
                 finalTextSpan.textContent = finalTranscript;
-                interimTextSpan.textContent = interimTranscript;
+                interimTextSpan.textContent = currentInterim;
             };
 
             recognition.onerror = (event) => {
                 console.error('Speech recognition error:', event.error);
                 let message = 'An error occurred. Please try again.';
-                
+
                 if (event.error === 'not-allowed') {
                     message = 'Microphone access denied. Please allow microphone permissions.';
                 } else if (event.error === 'network') {
@@ -285,7 +304,7 @@
                     message = 'No speech detected.';
                     // Don't stop entirely on mobile sometimes, but let's just log it
                 }
-                
+
                 errorText.textContent = message;
                 errorText.style.display = 'block';
                 stopRecording();
@@ -304,7 +323,7 @@
             function startRecording() {
                 try {
                     // Update final text to ensure we don't lose previous context
-                    finalTranscript = finalTextSpan.textContent;
+                    previousTranscript = finalTextSpan.textContent;
                     recognition.start();
                 } catch (e) {
                     console.error('Failed to start:', e);
@@ -330,6 +349,7 @@
 
             clearBtn.addEventListener('click', () => {
                 finalTranscript = '';
+                previousTranscript = '';
                 finalTextSpan.textContent = '';
                 interimTextSpan.textContent = '';
             });
@@ -351,4 +371,5 @@
         });
     </script>
 </body>
+
 </html>
