@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Speech to Text</title>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --text-color: #f8fafc;
+            --primary-color: #3b82f6;
+            --danger-color: #ef4444;
+            --card-bg: #1e293b;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+        }
+
+        .container {
+            background-color: var(--card-bg);
+            padding: 2.5rem 1.5rem;
+            border-radius: 1.5rem;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            width: 100%;
+            max-width: 600px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2rem;
+        }
+
+        h1 {
+            font-size: 1.75rem;
+            text-align: center;
+            background: linear-gradient(to right, #60a5fa, #3b82f6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .mic-btn-container {
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 1rem 0;
+        }
+
+        .pulse-ring {
+            position: absolute;
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            background-color: var(--danger-color);
+            opacity: 0;
+            z-index: 0;
+            transition: all 0.3s ease;
+            pointer-events: none;
+        }
+
+        .mic-btn.recording ~ .pulse-ring {
+            animation: pulse 1.5s infinite cubic-bezier(0.4, 0, 0.6, 1);
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(0.8); opacity: 0.5; }
+            100% { transform: scale(1.5); opacity: 0; }
+        }
+
+        .mic-btn {
+            position: relative;
+            z-index: 1;
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            border: none;
+            background-color: var(--primary-color);
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .mic-btn:hover {
+            transform: scale(1.05);
+            background-color: #2563eb;
+        }
+        
+        .mic-btn:active {
+            transform: scale(0.95);
+        }
+
+        .mic-btn.recording {
+            background-color: var(--danger-color);
+            animation: bounce 1s infinite alternate;
+        }
+
+        @keyframes bounce {
+            0% { transform: scale(1); }
+            100% { transform: scale(1.1); }
+        }
+
+        .mic-btn svg {
+            width: 36px;
+            height: 36px;
+            fill: currentColor;
+        }
+
+        .status {
+            font-size: 1rem;
+            color: #94a3b8;
+            font-weight: 500;
+            text-align: center;
+        }
+
+        .output-box {
+            width: 100%;
+            min-height: 150px;
+            background-color: #0f172a;
+            border: 2px solid #334155;
+            border-radius: 1rem;
+            padding: 1.25rem;
+            font-size: 1.125rem;
+            line-height: 1.6;
+            color: #e2e8f0;
+            white-space: pre-wrap;
+            overflow-y: auto;
+            max-height: 250px;
+            transition: border-color 0.3s ease;
+            word-break: break-word;
+        }
+
+        .output-box:focus {
+            outline: none;
+            border-color: var(--primary-color);
+        }
+
+        #interimText {
+            color: #94a3b8;
+            font-style: italic;
+        }
+
+        .error-msg {
+            color: var(--danger-color);
+            font-size: 0.875rem;
+            margin-top: -1.5rem;
+            display: none;
+            text-align: center;
+        }
+
+        .controls {
+            display: flex;
+            gap: 1rem;
+            width: 100%;
+            justify-content: space-between;
+        }
+
+        .action-btn {
+            background-color: transparent;
+            border: 1px solid #475569;
+            color: #cbd5e1;
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            font-size: 0.875rem;
+            transition: all 0.2s;
+            flex: 1;
+        }
+
+        .action-btn:hover {
+            background-color: #334155;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Speech to Text Translator</h1>
+        
+        <div class="mic-btn-container">
+            <button id="micBtn" class="mic-btn" aria-label="Toggle Recording">
+                <svg viewBox="0 0 24 24">
+                    <path d="M12 14c1.66 0 2.99-1.34 2.99-3L15 5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c3.28-.48 6-3.3 6-6.72h-1.7z"/>
+                </svg>
+            </button>
+            <div class="pulse-ring"></div>
+        </div>
+
+        <div class="status" id="statusText">Tap the microphone to start</div>
+        <div class="error-msg" id="errorText"></div>
+
+        <div class="output-box" id="outputBox">
+            <span id="finalText"></span><span id="interimText"></span>
+        </div>
+
+        <div class="controls">
+            <button class="action-btn" id="copyBtn">Copy Text</button>
+            <button class="action-btn" id="clearBtn">Clear Text</button>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const micBtn = document.getElementById('micBtn');
+            const statusText = document.getElementById('statusText');
+            const errorText = document.getElementById('errorText');
+            const finalTextSpan = document.getElementById('finalText');
+            const interimTextSpan = document.getElementById('interimText');
+            const copyBtn = document.getElementById('copyBtn');
+            const clearBtn = document.getElementById('clearBtn');
+
+            let recognition = null;
+            let isRecording = false;
+            let finalTranscript = '';
+
+            // Chrome requires webkitSpeechRecognition
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+            if (!SpeechRecognition) {
+                errorText.textContent = "Speech Recognition API is not supported in this browser. Please use Chrome.";
+                errorText.style.display = 'block';
+                micBtn.disabled = true;
+                micBtn.style.opacity = '0.5';
+                micBtn.style.cursor = 'not-allowed';
+                return;
+            }
+
+            recognition = new SpeechRecognition();
+            recognition.continuous = true;
+            recognition.interimResults = true;
+            recognition.lang = 'en-US';
+
+            recognition.onstart = () => {
+                isRecording = true;
+                micBtn.classList.add('recording');
+                statusText.textContent = "Listening...";
+                statusText.style.color = '#ef4444';
+                errorText.style.display = 'none';
+            };
+
+            recognition.onresult = (event) => {
+                let interimTranscript = '';
+
+                for (let i = event.resultIndex; i < event.results.length; i++) {
+                    const transcript = event.results[i][0].transcript;
+                    if (event.results[i].isFinal) {
+                        finalTranscript += transcript + ' ';
+                    } else {
+                        interimTranscript += transcript;
+                    }
+                }
+
+                finalTextSpan.textContent = finalTranscript;
+                interimTextSpan.textContent = interimTranscript;
+            };
+
+            recognition.onerror = (event) => {
+                console.error('Speech recognition error:', event.error);
+                let message = 'An error occurred. Please try again.';
+                
+                if (event.error === 'not-allowed') {
+                    message = 'Microphone access denied. Please allow microphone permissions.';
+                } else if (event.error === 'network') {
+                    message = 'Network issue. Check your internet connection.';
+                } else if (event.error === 'no-speech') {
+                    message = 'No speech detected.';
+                    // Don't stop entirely on mobile sometimes, but let's just log it
+                }
+                
+                errorText.textContent = message;
+                errorText.style.display = 'block';
+                stopRecording();
+            };
+
+            recognition.onend = () => {
+                // On some browsers (like Chrome on Android), continuous listening might top out naturally
+                // If we want it to be truly continuous until stopped manually, we can restart it.
+                // However, for manual toggle logic, we just reflect the stop state.
+                if (isRecording) {
+                    stopRecording();
+                    statusText.textContent = "Stopped automatically. Tap to speak again.";
+                }
+            };
+
+            function startRecording() {
+                try {
+                    // Update final text to ensure we don't lose previous context
+                    finalTranscript = finalTextSpan.textContent;
+                    recognition.start();
+                } catch (e) {
+                    console.error('Failed to start:', e);
+                }
+            }
+
+            function stopRecording() {
+                isRecording = false;
+                recognition.stop();
+                micBtn.classList.remove('recording');
+                statusText.textContent = "Tap the microphone to start";
+                statusText.style.color = '#94a3b8';
+                interimTextSpan.textContent = ''; // Clear trailing interim text
+            }
+
+            micBtn.addEventListener('click', () => {
+                if (isRecording) {
+                    stopRecording();
+                } else {
+                    startRecording();
+                }
+            });
+
+            clearBtn.addEventListener('click', () => {
+                finalTranscript = '';
+                finalTextSpan.textContent = '';
+                interimTextSpan.textContent = '';
+            });
+
+            copyBtn.addEventListener('click', () => {
+                const textToCopy = finalTranscript + interimTextSpan.textContent;
+                if (textToCopy.trim().length === 0) return;
+
+                navigator.clipboard.writeText(textToCopy).then(() => {
+                    const originalText = copyBtn.textContent;
+                    copyBtn.textContent = 'Copied!';
+                    setTimeout(() => {
+                        copyBtn.textContent = originalText;
+                    }, 2000);
+                }).catch(err => {
+                    console.error('Failed to copy text: ', err);
+                });
+            });
+        });
+    </script>
+</body>
+</html>
